@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DriveHub | Premium Automotive Showcase</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --surface-color: #1e293b;
+            --accent-color: #38bdf8;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --transition-speed: 0.4s;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.5rem 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-placeholder {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--accent-color), #0ea5e9);
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.4);
+        }
+
+        .logo-text {
+            font-family: 'Poppins', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: linear-gradient(to right, #fff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Brand Selector */
+        .brand-nav {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin: 2rem 0 3rem 0;
+            padding: 0 1rem;
+            flex-wrap: wrap;
+        }
+
+        .brand-btn {
+            background: var(--surface-color);
+            color: var(--text-secondary);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 0.75rem 1.5rem;
+            border-radius: 50px;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            font-weight: 500;
+            font-size: 0.9rem;
+            transition: all var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .brand-btn:hover {
+            color: var(--text-primary);
+            background: #2d3a4f;
+            transform: translateY(-2px);
+        }
+
+        .brand-btn.active {
+            background: var(--accent-color);
+            color: #0f172a;
+            font-weight: 600;
+            box-shadow: 0 4px 15px rgba(56, 189, 248, 0.3);
+        }
+
+        /* Carousel Section */
+        .showcase-container {
+            position: relative;
+            width: 90%;
+            max-width: 1200px;
+            height: 600px;
+            margin: 0 auto 4rem auto;
+            border-radius: 32px;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            background-color: #000;
+        }
+
+        .carousel-stage {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transition: opacity var(--transition-speed) ease, transform var(--transition-speed) ease;
+        }
+
+        .carousel-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            filter: brightness(0.9);
+        }
+
+        /* Overlay */
+        .car-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            padding: 3rem;
+            background: linear-gradient(to top, rgba(15, 23, 42, 1) 0%, rgba(15, 23, 42, 0.6) 40%, transparent 100%);
+            pointer-events: none;
+            transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .car-overlay.fade-up {
+            transform: translateY(20px);
+            opacity: 0;
+        }
+
+        .car-model-name {
+            font-family: 'Poppins', sans-serif;
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+            text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        }
+
+        .car-description {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            max-width: 600px;
+            line-height: 1.6;
+            text-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+
+        /* Controls */
+        .nav-arrow {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 60px;
+            height: 60px;
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            transition: all 0.3s ease;
+            z-index: 10;
+            user-select: none;
+        }
+
+        .nav-arrow:hover {
+            background: var(--accent-color);
+            color: #0f172a;
+            box-shadow: 0 0 20px rgba(56, 189, 248, 0.5);
+        }
+
+        .arrow-left { left: 2rem; }
+        .arrow-right { right: 2rem; }
+
+        @media (max-width: 768px) {
+            .car-model-name { font-size: 2rem; }
+            .car-description { font-size: 0.9rem; }
+            .showcase-container { height: 450px; }
+            .car-overlay { padding: 1.5rem; }
+            .nav-arrow { width: 45px; height: 45px; font-size: 1.2rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo-container">
+            <div class="logo-placeholder"></div>
+            <div class="logo-text">DriveHub</div>
+        </div>
+    </header>
+
+    <nav class="brand-nav" id="brandNav">
+        <!-- Brands populated by JS -->
+    </nav>
+
+    <main class="showcase-container">
+        <div class="carousel-stage" id="carouselStage">
+            <img src="" alt="Car" class="carousel-image" id="carImg">
+            <div class="car-overlay" id="carOverlay">
+                <h2 class="car-model-name" id="modelName">Loading...</h2>
+                <p class="car-description" id="modelDesc">Please select a brand to explore our collection.</p>
+            </div>
+        </div>
+        <button class="nav-arrow arrow-left" id="prevBtn">❮</button>
+        <button class="nav-arrow arrow-right" id="nextBtn">❯</button>
+    </main>
+
+    <script>
+        const CAR_DATA = {
+            Toyota: [
+                { name: "Supra", desc: "A legendary sports car reborn with precision engineering and timeless design.", img: "toyota,supra,sports-car" },
+                { name: "GR Yaris", desc: "Rally-bred performance in a compact, aggressive package built for the track.", img: "toyota,yaris,rally" },
+                { name: "Land Cruiser", desc: "The ultimate symbol of rugged durability and luxury off-road capability.", img: "toyota,land-cruiser,offroad" },
+                { name: "RAV4", desc: "A versatile, modern compact SUV designed for every adventure.", img: "toyota,rav4,suv" },
+                { name: "Camry", desc: "The gold standard of reliability, elegance, and efficiency in every mile.", img: "toyota,camry,sedan" },
+                { name: "Prius", desc: "Pioneering the future of hybrid efficiency with a bold, modern aesthetic.", img: "toyota,prius,hybrid" },
+                { name: "Tacoma", desc: "A powerhouse of a truck, engineered for the toughest jobs and toughest trails.", img: "toyota,tacoma,truck" },
+                { name: "Corolla Cross", desc: "A smart, agile crossover that blends practicality with a spirited drive.", img: "toyota,corolla-cross,crossover" },
+                { name: "Tundra", desc: "Massive power meets premium luxury in Toyota's most capable pickup.", img: "toyota,tundra,pickup" },
+                { name: "Century", desc: "The pinnacle of Japanese automotive luxury, crafted for the most discerning.", img: "toyota,century,luxury" }
+            ],
+            Honda: [
+                { name: "Civic Type R", desc: "A track-focused masterpiece that redefines the hot-hatch experience.", img: "honda,civic-type-r,sports" },
+                { name: "Accord", desc: "Sleek, sophisticated, and effortlessly smooth for the modern professional.", img: "honda,accord,sedan" },
+                { name: "NSX", desc: "Hybrid precision meets supercar performance in a breathtaking silhouette.", img: "honda,nsx,supercar" },
+                { name: "CR-V", desc: "The perfect balance of family utility and innovative design.", img: "honda,crv,suv" },
+                { name: "Pilot", desc: "Spacious, powerful, and ready for the whole family to travel in luxury.", img: "honda,pilot,suv" },
+                { name: "HR-V", desc: "A nimble and stylish urban crossover that fits perfectly in the city.", img: "honda,hrv,crossover" },
+                { name: "Honda e", desc: "A futuristic, all-electric urban mobility solution with cutting-edge tech.", img: "honda,electric,ev" },
+                { name: "Prelude Concept", desc: "A bold glimpse into the future of Honda's sports coupe heritage.", img: "honda,concept,car" },
+                { name: "Ridgeline", desc: "Unexpected versatility and comfort in a unique, capable pickup.", img: "honda,ridgeline,truck" },
+                { name: "Odyssey", desc: "The ultimate family cruiser, blending space with high-end convenience.", img: "honda,odyssey,minivan" }
+            ],
+            Tesla: [
+                { name: "Model S Plaid", desc: "Blindingly fast acceleration paired with unmatched luxury and range.", img: "tesla,model-s,electric" },
+                { name: "Model 3", desc: "The most accessible entry into the world of high-performance electric driving.", img: "tesla,model-3,ev" },
+                { name: "Model X", desc: "Defining the SUV of the future with iconic Falcon Wing doors.", img: "tesla,model-x,electric-suv" },
+                { name: "Model Y", desc: "A versatile electric crossover that blends efficiency with spacious utility.", img: "tesla,model-y,ev" },
+                { name: "Cybertruck", desc: "A futuristic exoskeleton on wheels, redefining the utility vehicle.", img: "tesla,cybertruck,futuristic" },
+                { name: "Roadster 2.0", desc: "The ultimate expression of electric speed and exhilarating design.", img: "tesla,roadster,supercar" },
+                { name: "Semi", desc: "Transforming the logistics industry with zero-emission heavy hauling.", img: "tesla,semi,truck" },
+                { name: "Model 3 Highland", desc: "Refined aesthetics and superior comfort for a more polished ride.", img: "tesla,model-3,modern" },
+                { name: "Model Y Juniper", desc: "The next evolution of the most popular electric crossover on Earth.", img: "tesla,model-y,updated" },
+                { name: "Cyberbeast", desc: "Unleashing raw, electric power in the most aggressive Tesla form yet.", img: "tesla,cyberbeast,power" }
+            ],
+            Nissan: [
+                { name: "GT-R Nismo", desc: "The 'Godzilla' of performance, refined for absolute track dominance.", img: "nissan,gtr,nismo" },
+                { name: "Z Performance", desc: "A modern homage to a legend, combining retro style with cutting-edge power.", img: "nissan,z-car,sports" },
+                { name: "Ariya", desc: "Nissan's vision of the electric future, blending Zen and high-tech design.", img: "nissan,ariya,electric" },
+                { name: "Rogue", desc: "An intelligent, adaptable SUV designed for every day and every journey.", img: "nissan,rogue,suv" },
+                { name: "Pathfinder", desc: "Bold, capable, and ready to tackle the road and the wild alike.", img: "nissan,pathfinder,suv" },
+                { name: "Patrol", desc: "A desert-conquering giant with uncompromised luxury and power.", img: "nissan,patrol,offroad" },
+                { name: "Leaf", desc: "One of the world's most trusted electric vehicles, leading the charge.", img: "nissan,leaf,ev" },
+                { name: "Frontier", desc: "Tough, reliable, and built for those who don't stop until the job is done.", img: "nissan,frontier,truck" },
+                { name: "Sentra", desc: "Sophisticated design meets effortless efficiency in a compact sedan.", img: "nissan,sentra,sedan" },
+                { name: "Qashqai", desc: "The original crossover, blending agility with a premium urban feel.", img: "nissan,qashqai,crossover" }
+            ],
+            BYD: [
+                { name: "Seal", desc: "A stunning electric sedan that blends aerodynamic grace with raw power.", img: "byd,seal,electric" },
+                { name: "Han", desc: "Flagship luxury meets innovative electric power in a commanding presence.", img: "byd,han,luxury-ev" },
+                { name: "Tang", desc: "A spacious, high-tech electric SUV designed for the modern family.", img: "byd,tang,suv-ev" },
+                { name: "Atto 3", desc: "Bold design and surprising performance in a smart, electric crossover.", img: "byd,atto3,ev" },
+                { name: "Dolphin", desc: "Playful, efficient, and designed for the vibrant rhythm of the city.", img: "byd,dolphin,city-ev" },
+                { name: "Sealion 7", desc: "A high-performance electric SUV that challenges the boundaries of style.", img: "byd,sealion,ev" },
+                { name: "Shark 6", desc: "BYD's entry into the electric pickup world, blending power and precision.", img: "byd,shark,truck-ev" },
+                { name: "Seagull", desc: "Compact efficiency and surprising value in a modern electric hatch.", img: "byd,seagull,ev" },
+                { name: "Yangwang U8", desc: "A luxury behemoth capable of amphibious travel and extreme off-roading.", img: "byd,yangwang-u8,luxury" },
+                { name: "Yangwang U9", desc: "A breathtaking electric supercar designed for absolute peak performance.", img: "byd,yangwang-u9,supercar" }
+            ]
+        };
+
+        const state = {
+            activeBrand: 'Toyota',
+            currentIndex: 0
+        };
+
+        const brandNav = document.getElementById('brandNav');
+        const carouselStage = document.getElementById('carouselStage');
+        const carImg = document.getElementById('carImg');
+        const modelName = document.getElementById('modelName');
+        const modelDesc = document.getElementById('modelDesc');
+        const carOverlay = document.getElementById('carOverlay');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+
+        function init() {
+            // Populate Brand Navigation
+            Object.keys(CAR_DATA).forEach(brand => {
+                const btn = document.createElement('button');
+                btn.className = `brand-btn ${brand === state.activeBrand ? 'active' : ''}`;
+                btn.innerText = brand;
+                btn.onclick = () => handleBrandChange(brand);
+                brandNav.appendChild(btn);
+            });
+
+            updateUI();
+        }
+
+        function updateUI() {
+            const brandCars = CAR_DATA[state.activeBrand];
+            const car = brandCars[state.currentIndex];
+
+            // Transition Effect: Fade out stage and overlay
+            carouselStage.style.opacity = '0';
+            carouselStage.style.transform = 'scale(1.02)';
+            carOverlay.classList.add('fade-up');
+
+            setTimeout(() => {
+                // Use a more reliable image placeholder service
+                // Using loremflickr for keyword-based high quality cars
+                const imgUrl = `https://loremflickr.com/1200/800/car,${car.img.split(',')[0]}`;
+                carImg.src = imgUrl;
+                modelName.innerText = car.name;
+                modelDesc.innerText = car.desc;
+
+                // Fade back in
+                carouselStage.style.opacity = '1';
+                carouselStage.style.transform = 'scale(1)';
+                carOverlay.classList.remove('fade-up');
+            }, 300);
+        }
+
+        function handleBrandChange(brand) {
+            state.activeBrand = brand;
+            state.currentIndex = 0;
+
+            // Update button active states
+            document.querySelectorAll('.brand-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.innerText === brand);
+            });
+
+            updateUI();
+        }
+
+        function handleNext() {
+            state.currentIndex = (state.currentIndex + 1) % 10;
+            updateUI();
+        }
+
+        function handlePrev() {
+            state.currentIndex = (state.currentIndex - 1 + 10) % 10;
+            updateUI();
+        }
+
+        prevBtn.onclick = handlePrev;
+        nextBtn.onclick = handleNext;
+
+        init();
+    </script>
+</body>
+</html>
