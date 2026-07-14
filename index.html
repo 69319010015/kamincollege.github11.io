@@ -1,0 +1,1442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>SYSTEM ACCESS :: TERMINAL v2.0</title>
+
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    /* ============================================================
+       0. CUSTOM FONT-FACE — Imagine Font
+       ============================================================ */
+    @font-face {
+      font-family: 'Imagine Font';
+      src: url('./imagine_font.ttf') format('truetype');
+      font-weight: normal;
+      font-style: normal;
+      font-display: swap;
+    }
+
+    /* ============================================================
+       1. CSS RESET & GLOBAL
+       ============================================================ */
+    *,
+    *::before,
+    *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      border-radius: 0 !important;
+    }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      background: #000000;
+    }
+
+    body {
+      font-family: 'Imagine Font', 'Courier New', 'Orbitron', monospace;
+      color: #FFFFFF;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      position: relative;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    /* --- ANIMATED SCAN-LINE OVERLAY (drifting CRT effect, boosted) --- */
+    body::after {
+      content: '';
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 9999;
+      background: repeating-linear-gradient(
+        0deg,
+        rgba(255,255,255,0.025) 0px,
+        rgba(255,255,255,0.025) 1px,
+        transparent 1px,
+        transparent 3px
+      );
+      animation: scanDrift 6s linear infinite;
+    }
+    @keyframes scanDrift {
+      from { background-position: 0 0; }
+      to { background-position: 0 4px; }
+    }
+
+    ::selection {
+      background: #FFFFFF;
+      color: #000000;
+    }
+
+    /* ============================================================
+       2. ANIMATED TECH BACKGROUND (Canvas)
+       ============================================================ */
+    #hud-bg {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* Vignette radial shadow — keeps edges dark, draws focus center */
+    #hud-vignette {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background: radial-gradient(
+        ellipse at center,
+        transparent 50%,
+        rgba(0,0,0,0.45) 75%,
+        rgba(0,0,0,0.88) 100%
+      );
+    }
+
+    /* ============================================================
+       3. VIEW TOGGLING — 100dvh, no scroll
+       ============================================================ */
+    .view {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100dvh;
+      height: 100vh;
+      overflow: hidden;
+      padding: clamp(6px, 1.5vw, 20px);
+      position: relative;
+      z-index: 1;
+    }
+    .view.hidden {
+      display: none !important;
+    }
+
+    /* ============================================================
+       4. HUD DECORATIVE UTILITIES
+       ============================================================ */
+    .double-border {
+      border: 2px solid #FFFFFF;
+      outline: 2px solid #333333;
+      outline-offset: 4px;
+    }
+
+    .hud-label-tiny {
+      display: inline-block;
+      font-size: clamp(7px, 1.5vw, 9px);
+      letter-spacing: 2px;
+      padding: 2px 6px;
+      background: #000000;
+      border: 1px solid #555555;
+      color: #AAAAAA;
+    }
+
+    .crosshair {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      border-color: #FFFFFF;
+      border-style: solid;
+      border-width: 0;
+    }
+    .crosshair.tl { top: -6px; left: -6px; border-top-width: 2px; border-left-width: 2px; }
+    .crosshair.tr { top: -6px; right: -6px; border-top-width: 2px; border-right-width: 2px; }
+    .crosshair.bl { bottom: -6px; left: -6px; border-bottom-width: 2px; border-left-width: 2px; }
+    .crosshair.br { bottom: -6px; right: -6px; border-bottom-width: 2px; border-right-width: 2px; }
+
+    .status-bar-bg {
+      height: clamp(4px, 1vw, 6px);
+      background-color: #1A1A1A;
+      border: 1px solid #555555;
+      overflow: hidden;
+    }
+    .status-bar-fill {
+      height: 100%;
+      background-color: #FFFFFF;
+      transition: width 0.3s ease;
+    }
+
+    .grid-meter {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 2px;
+    }
+    .grid-meter .cell {
+      aspect-ratio: 1 / 1;
+      background-color: #1A1A1A;
+      border: 1px solid #333333;
+    }
+    .grid-meter .cell.filled {
+      background-color: #FFFFFF;
+      border-color: #FFFFFF;
+    }
+
+    .blink-cursor {
+      animation: blink 1s step-end infinite;
+    }
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+
+    /* === EQUALIZER BARS (frequency bars) === */
+    .eq-bar-group {
+      display: flex;
+      gap: 2px;
+      align-items: flex-end;
+      height: 100%;
+    }
+    .eq-bar {
+      flex: 1;
+      min-width: 3px;
+      background-color: #FFFFFF;
+      transition: height 0.15s ease;
+      will-change: height;
+    }
+
+    /* Horizontal equalizer strip (mobile, below display) */
+    .eq-horizontal {
+      display: flex;
+      gap: 2px;
+      height: clamp(14px, 3vw, 24px);
+      width: 100%;
+    }
+    .eq-horizontal .eq-bar {
+      height: 100% !important; /* overwritten by JS inline */
+      width: 100%;
+      min-width: 0;
+    }
+
+    /* ============================================================
+       5. LOGIN PAGE
+       ============================================================ */
+    #login-page {
+      background: transparent;
+    }
+
+    .login-card {
+      width: 90%;
+      max-width: 420px;
+      position: relative;
+      background-color: rgba(10,10,10,0.92);
+      transition: transform 0.15s ease-out;
+    }
+
+    .login-card .card-header {
+      padding: clamp(10px, 2vw, 16px) clamp(12px, 2.5vw, 20px);
+      text-align: center;
+      font-size: clamp(11px, 2.5vw, 14px);
+      letter-spacing: clamp(1px, 0.5vw, 3px);
+      border: 2px solid #FFFFFF;
+      background: #FFFFFF;
+      color: #000000;
+    }
+
+    .login-card .card-body {
+      border: 2px solid #FFFFFF;
+      border-top: none;
+      padding: clamp(16px, 3vw, 28px) clamp(12px, 2.5vw, 24px) clamp(14px, 2.5vw, 24px);
+    }
+
+    .login-card label {
+      display: block;
+      font-size: clamp(9px, 1.8vw, 11px);
+      letter-spacing: 2px;
+      color: #AAAAAA;
+      margin-bottom: 4px;
+    }
+
+    .login-card input {
+      width: 100%;
+      background-color: #000000;
+      border: 2px solid #555555;
+      padding: clamp(10px, 2vw, 14px) clamp(8px, 1.5vw, 12px);
+      font-family: inherit;
+      font-size: clamp(14px, 3vw, 16px);
+      color: #FFFFFF;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .login-card input:focus {
+      border-color: #FFFFFF;
+    }
+    .login-card input::placeholder {
+      color: #333333;
+      letter-spacing: 1px;
+    }
+
+    .login-card .input-group {
+      margin-bottom: clamp(10px, 2.5vw, 18px);
+    }
+
+    .login-card .login-btn {
+      width: 100%;
+      padding: clamp(12px, 2.5vw, 18px) clamp(12px, 2.5vw, 20px);
+      margin-top: 6px;
+      background-color: #000000;
+      color: #FFFFFF;
+      border: 2px solid #FFFFFF;
+      font-family: inherit;
+      font-size: clamp(11px, 2.5vw, 14px);
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.2s;
+      min-height: clamp(42px, 8vw, 56px);
+    }
+    .login-card .login-btn:hover {
+      background-color: #FFFFFF;
+      color: #000000;
+    }
+    .login-card .login-btn:active {
+      transform: scale(0.97);
+    }
+
+    .login-card .status-line {
+      margin-top: clamp(8px, 2vw, 16px);
+      text-align: center;
+      font-size: clamp(8px, 1.5vw, 10px);
+      letter-spacing: 2px;
+      color: #666666;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 4px;
+    }
+
+    /* Social Auth Section */
+    .social-divider {
+      margin-top: clamp(10px, 2vw, 16px);
+      margin-bottom: clamp(8px, 1.5vw, 12px);
+      text-align: center;
+      font-size: clamp(8px, 1.5vw, 10px);
+      letter-spacing: 3px;
+      color: #555555;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .social-divider::before,
+    .social-divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background-color: #444444;
+    }
+
+    .social-row {
+      display: flex;
+      gap: clamp(4px, 1vw, 8px);
+      flex-wrap: wrap;
+    }
+
+    .social-btn {
+      flex: 1;
+      min-width: 120px;
+      padding: clamp(10px, 2vw, 14px) clamp(8px, 1.5vw, 12px);
+      background-color: transparent;
+      color: #CCCCCC;
+      border: 2px solid #555555;
+      font-family: inherit;
+      font-size: clamp(9px, 1.8vw, 12px);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.2s;
+      min-height: clamp(38px, 7vw, 48px);
+    }
+    .social-btn:hover {
+      background-color: #FFFFFF;
+      color: #000000;
+      border-color: #FFFFFF;
+    }
+    .social-btn:active {
+      transform: scale(0.97);
+    }
+    .social-btn .social-icon {
+      margin-right: 6px;
+      font-size: clamp(11px, 2vw, 14px);
+    }
+
+    /* ============================================================
+       6. CALCULATOR PAGE — Mobile-first responsive
+       ============================================================ */
+    #calculator-page {
+      background: transparent;
+    }
+
+    .calc-hud {
+      width: 100%;
+      max-width: 820px;
+      position: relative;
+      background-color: rgba(10,10,10,0.92);
+      max-height: 100%;
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.15s ease-out;
+    }
+
+    /* Top HUD bar */
+    .hud-top-bar {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2px clamp(6px, 2vw, 16px);
+      padding: clamp(4px, 1vw, 8px) clamp(6px, 1.5vw, 16px);
+      background-color: #000000;
+      border: 2px solid #FFFFFF;
+      margin-bottom: 3px;
+    }
+    .hud-top-bar .hud-item {
+      font-size: clamp(7px, 1.5vw, 10px);
+      letter-spacing: clamp(1px, 0.3vw, 2px);
+      color: #CCCCCC;
+    }
+    .hud-top-bar .hud-item strong {
+      color: #FFFFFF;
+    }
+
+    /* Pulsing calibration text */
+    .pulse-calibration {
+      animation: pulseStatus 2s ease-in-out infinite;
+    }
+    @keyframes pulseStatus {
+      0%, 100% { opacity: 0.3; }
+      50% { opacity: 1; }
+    }
+
+    /* Organic ONLINE blink */
+    .online-blink {
+      transition: opacity 0.3s ease;
+    }
+
+    .calc-layout {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 3px;
+      border: 2px solid #FFFFFF;
+      padding: 3px;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .hud-side {
+      display: none;
+    }
+
+    .calc-main {
+      background-color: #000000;
+      border: 1px solid #444444;
+      padding: clamp(4px, 1vw, 10px);
+      display: flex;
+      flex-direction: column;
+      gap: clamp(4px, 0.8vw, 8px);
+      min-height: 0;
+    }
+
+    /* --- CALCULATOR DISPLAY with radar sweep & glow --- */
+    .calc-display-wrap {
+      border: 2px solid #FFFFFF;
+      background-color: #000000;
+      padding: clamp(2px, 0.5vw, 4px);
+      position: relative;
+      overflow: hidden;
+    }
+    /* Radar sweep line across the display */
+    .calc-display-wrap::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background: linear-gradient(
+        to right,
+        transparent 0%,
+        rgba(255,255,255,0.01) 10%,
+        rgba(255,255,255,0.2) 50%,
+        rgba(255,255,255,0.01) 90%,
+        transparent 100%
+      );
+      pointer-events: none;
+      z-index: 2;
+      animation: radarSweep 3s linear infinite;
+      will-change: transform;
+    }
+    @keyframes radarSweep {
+      0% { transform: translateY(0); }
+      100% { transform: translateY(100%); }
+    }
+
+    .calc-display {
+      background-color: #000000;
+      padding: clamp(8px, 2vw, 16px) clamp(6px, 1.5vw, 12px);
+      text-align: right;
+      font-size: clamp(22px, 6vw, 32px);
+      letter-spacing: clamp(2px, 0.5vw, 4px);
+      color: #FFFFFF;
+      font-family: 'Imagine Font', 'Courier New', monospace;
+      min-height: clamp(42px, 10vw, 68px);
+      overflow: hidden;
+      border: 1px solid #333333;
+      animation: displayGlow 4s ease-in-out infinite;
+      will-change: box-shadow;
+    }
+    @keyframes displayGlow {
+      0%, 100% { box-shadow: inset 0 0 8px rgba(255,255,255,0.03); }
+      50% { box-shadow: inset 0 0 18px rgba(255,255,255,0.1); }
+    }
+    .calc-display .calc-sub {
+      font-size: clamp(10px, 2.5vw, 14px);
+      color: #666666;
+      min-height: clamp(14px, 3vw, 20px);
+    }
+
+    /* Calculator button grid */
+    .calc-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: clamp(2px, 0.5vw, 4px);
+      min-height: 0;
+    }
+
+    .calc-grid button {
+      padding: clamp(4px, 1vw, 16px) clamp(2px, 0.5vw, 4px);
+      font-family: 'Imagine Font', 'Courier New', monospace;
+      font-size: clamp(15px, 4vw, 20px);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      background-color: #000000;
+      color: #FFFFFF;
+      border: 2px solid #555555;
+      cursor: pointer;
+      transition: all 0.12s;
+      min-height: clamp(40px, 10vw, 56px);
+      min-width: 0;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    .calc-grid button:hover {
+      background-color: #FFFFFF;
+      color: #000000;
+      border-color: #FFFFFF;
+    }
+    .calc-grid button:active {
+      transform: scale(0.94);
+    }
+
+    .calc-grid button.op {
+      border-color: #777777;
+    }
+    .calc-grid button.equals {
+      background-color: #000000;
+      border: 2px solid #FFFFFF;
+      border-width: clamp(2px, 0.5vw, 3px);
+    }
+    .calc-grid button.equals:hover {
+      background-color: #FFFFFF;
+      color: #000000;
+    }
+    .calc-grid button.clear {
+      border-color: #FF4444;
+      color: #FF4444;
+    }
+    .calc-grid button.clear:hover {
+      background-color: #FF4444;
+      color: #000000;
+      border-color: #FF4444;
+    }
+
+    /* Bottom HUD bar */
+    .hud-bottom-bar {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2px clamp(6px, 2vw, 16px);
+      padding: clamp(3px, 0.8vw, 6px) clamp(6px, 1.5vw, 16px);
+      background-color: #000000;
+      border: 2px solid #FFFFFF;
+      border-top: none;
+      font-size: clamp(7px, 1.5vw, 9px);
+      letter-spacing: clamp(1px, 0.3vw, 2px);
+      color: #888888;
+    }
+
+    /* ============================================================
+       7. TABLET (480px+)
+       ============================================================ */
+    @media (min-width: 480px) {
+      .calc-layout {
+        grid-template-columns:
+          clamp(70px, 12vw, 110px)
+          1fr
+          clamp(70px, 12vw, 110px);
+      }
+
+      .hud-side {
+        display: flex;
+        flex-direction: column;
+        gap: clamp(6px, 1vw, 14px);
+        background-color: #1A1A1A;
+        border: 1px solid #444444;
+        padding: clamp(4px, 1vw, 12px) clamp(3px, 0.8vw, 8px);
+        overflow: hidden;
+      }
+
+      .hud-side .section-label {
+        font-size: clamp(6px, 1vw, 8px);
+        letter-spacing: clamp(1px, 0.3vw, 2px);
+        color: #888888;
+        border-bottom: 1px solid #444444;
+        padding-bottom: 2px;
+        margin-bottom: clamp(3px, 0.5vw, 6px);
+      }
+
+      .hud-side .meter-row {
+        margin-bottom: clamp(2px, 0.4vw, 6px);
+      }
+      .hud-side .meter-row .meter-label {
+        font-size: clamp(6px, 1vw, 8px);
+        color: #AAAAAA;
+        display: flex;
+        justify-content: space-between;
+      }
+
+      .side-grid-blocks {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 2px;
+      }
+      .side-grid-blocks .block {
+        background: #000000;
+        border: 1px solid #555555;
+        aspect-ratio: 1 / 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: clamp(5px, 0.9vw, 7px);
+        color: #888888;
+        transition: all 0.15s;
+      }
+      .side-grid-blocks .block.active {
+        background: #FFFFFF;
+        color: #000000;
+        border-color: #FFFFFF;
+      }
+
+      .hud-top-bar {
+        grid-template-columns: 1fr 1fr 1fr 1fr;
+      }
+
+      .hud-bottom-bar {
+        grid-template-columns: 1fr 1fr 1fr;
+      }
+
+      .view {
+        padding: clamp(8px, 2vw, 16px);
+      }
+    }
+
+    /* ============================================================
+       8. DESKTOP (820px+)
+       ============================================================ */
+    @media (min-width: 820px) {
+      .calc-layout {
+        grid-template-columns: 140px 1fr 140px;
+        gap: 4px;
+        padding: 4px;
+      }
+
+      .hud-side {
+        padding: 12px 8px;
+        gap: 14px;
+      }
+
+      .hud-side .section-label {
+        font-size: 8px;
+      }
+
+      .hud-side .meter-row .meter-label {
+        font-size: 8px;
+      }
+
+      .side-grid-blocks .block {
+        font-size: 7px;
+      }
+
+      .hud-top-bar {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 16px;
+      }
+      .hud-top-bar .hud-item {
+        font-size: 10px;
+      }
+
+      .hud-bottom-bar {
+        display: flex;
+        justify-content: space-between;
+        padding: 6px 16px;
+        font-size: 9px;
+      }
+
+      .calc-grid button {
+        padding: 16px 4px;
+        font-size: 20px;
+        min-height: 56px;
+      }
+
+      .view {
+        padding: 20px;
+      }
+    }
+
+    /* ============================================================
+       9. SAFARI NOTCH FIXES
+       ============================================================ */
+    @supports (padding: env(safe-area-inset-top)) {
+      .view {
+        padding-left: max(clamp(6px, 1.5vw, 20px), env(safe-area-inset-left));
+        padding-right: max(clamp(6px, 1.5vw, 20px), env(safe-area-inset-right));
+        padding-top: max(clamp(6px, 1.5vw, 20px), env(safe-area-inset-top));
+        padding-bottom: max(clamp(6px, 1.5vw, 20px), env(safe-area-inset-bottom));
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Animated Tech Background -->
+  <canvas id="hud-bg"></canvas>
+
+  <!-- Vignette radial shadow overlay -->
+  <div id="hud-vignette"></div>
+
+  <!-- ============================================================
+       PAGE 1: LOGIN SCREEN
+       ============================================================ -->
+  <div id="login-page" class="view">
+    <div class="login-card double-border" style="position:relative;">
+      <span class="crosshair tl"></span>
+      <span class="crosshair tr"></span>
+      <span class="crosshair bl"></span>
+      <span class="crosshair br"></span>
+
+      <div class="card-header">
+        &#9654; SYSTEM ACCESS TERMINAL &#9664;
+      </div>
+      <div class="card-body">
+        <div class="input-group">
+          <label for="username">ACCESS ID / USERNAME</label>
+          <input type="text" id="username" placeholder="ENTER USERNAME..." autocomplete="off" />
+        </div>
+        <div class="input-group">
+          <label for="password">SECURITY CODE / PASSWORD</label>
+          <input type="password" id="password" placeholder="ENTER PASSWORD..." />
+        </div>
+
+        <button class="login-btn" id="loginBtn">&#9654; INITIALIZE CONNECTION &#9664;</button>
+
+        <div class="social-divider">OR AUTHENTICATE VIA</div>
+
+        <div class="social-row">
+          <button class="social-btn" id="googleLogin">
+            <span class="social-icon">&#9654;</span> GOOGLE LOGIN
+          </button>
+          <button class="social-btn" id="facebookLogin">
+            <span class="social-icon">&#9644;</span> FACEBOOK LOGIN
+          </button>
+        </div>
+
+        <div class="status-line">
+          <span class="hud-label-tiny">STATUS: AWAITING INPUT</span>
+          <span class="hud-label-tiny">SIGNAL: <span class="blink-cursor">&#9608;</span></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       PAGE 2: CALCULATOR SCREEN (LIVING HUD)
+       ============================================================ -->
+  <div id="calculator-page" class="view hidden">
+    <div class="calc-hud double-border" style="position:relative;">
+      <span class="crosshair tl"></span>
+      <span class="crosshair tr"></span>
+      <span class="crosshair bl"></span>
+      <span class="crosshair br"></span>
+
+      <!-- Top HUD bar (enhanced with pulse & blink) -->
+      <div class="hud-top-bar">
+        <span class="hud-item">SYS: <strong class="online-blink" id="onlineStatus">ONLINE</strong></span>
+        <span class="hud-item pulse-calibration">CALIBRATION: ACTIVE</span>
+        <span class="hud-item">LV. <strong>99</strong></span>
+        <span class="hud-item">ACCESS: <strong>GRANTED</strong></span>
+      </div>
+
+      <div class="calc-layout">
+        <!-- LEFT HUD PANEL (with EQ bars) -->
+        <div class="hud-side" id="leftHudSide">
+          <div>
+            <div class="section-label">STATUS METERS</div>
+            <div class="meter-row">
+              <div class="meter-label"><span>ATK</span><span>87%</span></div>
+              <div class="status-bar-bg"><div class="status-bar-fill" style="width:87%;"></div></div>
+            </div>
+            <div class="meter-row">
+              <div class="meter-label"><span>DEF</span><span>63%</span></div>
+              <div class="status-bar-bg"><div class="status-bar-fill" style="width:63%;"></div></div>
+            </div>
+            <div class="meter-row">
+              <div class="meter-label"><span>SPD</span><span>42%</span></div>
+              <div class="status-bar-bg"><div class="status-bar-fill" style="width:42%;"></div></div>
+            </div>
+            <div class="meter-row">
+              <div class="meter-label"><span>CPU</span><span>91%</span></div>
+              <div class="status-bar-bg"><div class="status-bar-fill" style="width:91%;"></div></div>
+            </div>
+          </div>
+
+          <div>
+            <div class="section-label">SKILL GRID</div>
+            <div class="grid-meter">
+              <span class="cell filled"></span><span class="cell filled"></span>
+              <span class="cell filled"></span><span class="cell"></span>
+              <span class="cell filled"></span><span class="cell filled"></span>
+              <span class="cell"></span><span class="cell"></span>
+              <span class="cell filled"></span><span class="cell"></span>
+              <span class="cell"></span><span class="cell"></span>
+              <span class="cell"></span><span class="cell"></span>
+              <span class="cell"></span><span class="cell"></span>
+            </div>
+          </div>
+
+          <div>
+            <div class="section-label">FREQ ANALYZER</div>
+            <div class="eq-bar-group" id="eqBarsLeft"></div>
+          </div>
+        </div>
+
+        <!-- CALCULATOR MAIN -->
+        <div class="calc-main">
+          <div class="calc-display-wrap">
+            <div class="calc-display" id="calcDisplay">
+              <div class="calc-sub" id="calcSubDisplay"></div>
+              <div id="calcMainDisplay">0</div>
+            </div>
+          </div>
+
+          <!-- Mobile equalizer strip (hidden on tablet+) -->
+          <div class="eq-horizontal" id="eqMobile"></div>
+
+          <div class="calc-grid">
+            <button class="clear" data-action="clear">C</button>
+            <button class="op" data-action="operator" data-value="/">&#247;</button>
+            <button class="op" data-action="operator" data-value="*">&#215;</button>
+            <button class="op" data-action="operator" data-value="-">&#8722;</button>
+
+            <button data-action="number" data-value="7">7</button>
+            <button data-action="number" data-value="8">8</button>
+            <button data-action="number" data-value="9">9</button>
+            <button class="op" data-action="operator" data-value="+">+</button>
+
+            <button data-action="number" data-value="4">4</button>
+            <button data-action="number" data-value="5">5</button>
+            <button data-action="number" data-value="6">6</button>
+            <button class="equals" data-action="equals">=</button>
+
+            <button data-action="number" data-value="1">1</button>
+            <button data-action="number" data-value="2">2</button>
+            <button data-action="number" data-value="3">3</button>
+            <button data-action="negate" style="border-color:#777;">+/&#8722;</button>
+
+            <button data-action="number" data-value="0" style="grid-column:span 2;">0</button>
+            <button data-action="number" data-value=".">.</button>
+            <button data-action="percent">%</button>
+          </div>
+        </div>
+
+        <!-- RIGHT HUD PANEL (with live data stream) -->
+        <div class="hud-side" id="rightHudSide">
+          <div>
+            <div class="section-label">LIKE / DISLIKE</div>
+            <div class="side-grid-blocks">
+              <span class="block active">LIKE</span>
+              <span class="block">DSLK</span>
+              <span class="block">RATE</span>
+              <span class="block active">SAVE</span>
+              <span class="block active">DATA</span>
+              <span class="block">SYNC</span>
+              <span class="block">CODE</span>
+              <span class="block active">MAP</span>
+            </div>
+          </div>
+
+          <div>
+            <div class="section-label">OWNER CHAR</div>
+            <div class="side-grid-blocks" style="grid-template-columns:repeat(3,1fr);">
+              <span class="block active">HP</span>
+              <span class="block active">MP</span>
+              <span class="block">EXP</span>
+              <span class="block active">LV</span>
+              <span class="block">STR</span>
+              <span class="block active">INT</span>
+            </div>
+          </div>
+
+          <div>
+            <div class="section-label">I/O BUFFER</div>
+            <div id="ioBuffer" style="font-size:clamp(5px,0.9vw,7px);color:#555;line-height:1.6;letter-spacing:1px;">
+              0x00: 7F 3A 01<br/>
+              0x04: B2 4E 09<br/>
+              0x08: 1C D0 FF<br/>
+              0x0C: 93 66 2A
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom HUD bar -->
+      <div class="hud-bottom-bar">
+        <span>CALCULATOR v2.0</span>
+        <span>E. OPS: <span id="opCount">0</span></span>
+        <span>TERMINAL: ACTIVE</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       JAVASCRIPT
+       ============================================================ -->
+  <script>
+    (function() {
+      'use strict';
+
+      // ============================================================
+      // 1. ANIMATED TECH BACKGROUND (Canvas Particle Network)
+      // ============================================================
+      const canvas = document.getElementById('hud-bg');
+      const ctx = canvas.getContext('2d');
+      let particles = [];
+      let gridOffset = 0;
+
+      function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+      }
+
+      function createParticles(count) {
+        particles = [];
+        for (let i = 0; i < count; i++) {
+          particles.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            vx: (Math.random() - 0.5) * 0.5,
+            vy: (Math.random() - 0.5) * 0.5,
+            size: Math.random() * 2.0 + 0.8
+          });
+        }
+      }
+
+      function drawParticles() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // -- Floating Grid Matrix (scrolling diagonal drift, boosted speed) --
+        const cellSize = 60;
+        gridOffset += 0.4;
+        const offX = gridOffset % cellSize;
+        const offY = (gridOffset * 0.7) % cellSize;
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.045)';
+        ctx.lineWidth = 0.6;
+
+        // Vertical lines
+        for (let x = -offX; x < canvas.width + cellSize; x += cellSize) {
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, canvas.height);
+          ctx.stroke();
+        }
+        // Horizontal lines
+        for (let y = -offY; y < canvas.height + cellSize; y += cellSize) {
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(canvas.width, y);
+          ctx.stroke();
+        }
+
+        for (let i = 0; i < particles.length; i++) {
+          const p = particles[i];
+          p.x += p.vx;
+          p.y += p.vy;
+          if (p.x < 0) p.x = canvas.width;
+          if (p.x > canvas.width) p.x = 0;
+          if (p.y < 0) p.y = canvas.height;
+          if (p.y > canvas.height) p.y = 0;
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.18)';
+          ctx.fillRect(p.x, p.y, p.size, p.size);
+          for (let j = i + 1; j < particles.length; j++) {
+            const o = particles[j];
+            const dx = p.x - o.x;
+            const dy = p.y - o.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < 120) {
+              const alpha = (1 - dist / 120) * 0.10;
+              ctx.beginPath();
+              ctx.moveTo(p.x, p.y);
+              ctx.lineTo(o.x, o.y);
+              ctx.strokeStyle = 'rgba(255, 255, 255, ' + alpha + ')';
+              ctx.lineWidth = 0.6;
+              ctx.stroke();
+            }
+          }
+        }
+      }
+
+      function animateBg() {
+        drawParticles();
+        requestAnimationFrame(animateBg);
+      }
+
+      function initCanvasBackground() {
+        resizeCanvas();
+        createParticles(45);
+        animateBg();
+        window.addEventListener('resize', function() {
+          resizeCanvas();
+          createParticles(45);
+        });
+      }
+
+      // ============================================================
+      // 2. EQUALIZER BARS (ambient frequency animation)
+      // ============================================================
+      let eqInterval = null;
+      const EQ_BAR_COUNT = 8;
+
+      function createEqBars(containerId, isVertical) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        container.innerHTML = '';
+        for (let i = 0; i < EQ_BAR_COUNT; i++) {
+          const bar = document.createElement('span');
+          bar.className = 'eq-bar';
+          bar.style.height = isVertical ? '20%' : '100%';
+          container.appendChild(bar);
+        }
+      }
+
+      function randomizeEqBars() {
+        // Left sidebar bars
+        const leftContainer = document.getElementById('eqBarsLeft');
+        if (leftContainer && leftContainer.children.length) {
+          for (let i = 0; i < leftContainer.children.length; i++) {
+            leftContainer.children[i].style.height = Math.floor(Math.random() * 100) + '%';
+          }
+        }
+        // Mobile strip bars
+        const mobileContainer = document.getElementById('eqMobile');
+        if (mobileContainer && mobileContainer.children.length) {
+          const isWide = window.innerWidth >= 480;
+          for (let i = 0; i < mobileContainer.children.length; i++) {
+            const pct = Math.floor(Math.random() * (isWide ? 20 : 60) + 30);
+            mobileContainer.children[i].style.height = pct + '%';
+          }
+        }
+      }
+
+      function startEqAnimation() {
+        createEqBars('eqBarsLeft', true);
+        createEqBars('eqMobile', false);
+        randomizeEqBars();
+        eqInterval = setInterval(randomizeEqBars, 150);
+      }
+
+      function stopEqAnimation() {
+        if (eqInterval) {
+          clearInterval(eqInterval);
+          eqInterval = null;
+        }
+      }
+
+      // ============================================================
+      // 3. LIVE DATA STREAM (I/O BUFFER cycling)
+      // ============================================================
+      let dataInterval = null;
+      const HEX_DIGITS = '0123456789ABCDEF';
+
+      function randomHexByte() {
+        return HEX_DIGITS[Math.floor(Math.random() * 16)] +
+               HEX_DIGITS[Math.floor(Math.random() * 16)];
+      }
+
+      function cycleIoBuffer() {
+        const container = document.getElementById('ioBuffer');
+        if (!container) return;
+        // Only cycle on tablet+, slower on mobile if visible
+        const isLarge = window.innerWidth >= 480;
+        const rows = container.innerHTML.split('<br/>');
+        if (rows.length < 4) return;
+
+        // Randomly mutate bytes with varying frequency
+        const cycleCount = isLarge ? 3 : 1;
+        for (let c = 0; c < cycleCount; c++) {
+          const rowIdx = Math.floor(Math.random() * 4);
+          const parts = rows[rowIdx].split(': ');
+          if (parts.length < 2) continue;
+          const bytes = parts[1].split(' ');
+          const byteIdx = Math.floor(Math.random() * bytes.length);
+          bytes[byteIdx] = randomHexByte();
+          parts[1] = bytes.join(' ');
+          rows[rowIdx] = parts.join(': ');
+        }
+        container.innerHTML = rows.join('<br/>');
+      }
+
+      function startDataStream() {
+        dataInterval = setInterval(cycleIoBuffer, 400);
+      }
+
+      function stopDataStream() {
+        if (dataInterval) {
+          clearInterval(dataInterval);
+          dataInterval = null;
+        }
+      }
+
+      // ============================================================
+      // 4. ONLINE STATUS ORGANIC BLINK
+      // ============================================================
+      let blinkTimeout = null;
+
+      function scheduleOnlineBlink() {
+        // Random interval between 2-8 seconds for organic feel
+        const delay = 2000 + Math.random() * 6000;
+        blinkTimeout = setTimeout(function() {
+          const el = document.getElementById('onlineStatus');
+          if (el) {
+            el.style.opacity = '0.3';
+            setTimeout(function() {
+              el.style.opacity = '1';
+              scheduleOnlineBlink();
+            }, 200 + Math.random() * 400);
+          } else {
+            scheduleOnlineBlink();
+          }
+        }, delay);
+      }
+
+      function startOnlineBlink() {
+        scheduleOnlineBlink();
+      }
+
+      function stopOnlineBlink() {
+        if (blinkTimeout) {
+          clearTimeout(blinkTimeout);
+          blinkTimeout = null;
+        }
+        const el = document.getElementById('onlineStatus');
+        if (el) el.style.opacity = '1';
+      }
+
+      // ============================================================
+      // 5. AUDIO SYSTEM (Web Audio API)
+      // ============================================================
+      let audioCtx = null;
+      let bootAttempted = false;
+
+      function getAudioContext() {
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+        return audioCtx;
+      }
+
+      function playClickSound() {
+        try {
+          const ctx = getAudioContext();
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'square';
+          osc.frequency.value = 600;
+          gain.gain.setValueAtTime(0.08, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(ctx.currentTime);
+          osc.stop(ctx.currentTime + 0.05);
+        } catch(e) {}
+      }
+
+      function playBootSound() {
+        try {
+          const ctx = getAudioContext();
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(100, ctx.currentTime);
+          osc.frequency.linearRampToValueAtTime(800, ctx.currentTime + 0.6);
+          gain.gain.setValueAtTime(0.05, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(ctx.currentTime);
+          osc.stop(ctx.currentTime + 0.6);
+        } catch(e) {}
+      }
+
+      function tryBootSound() {
+        if (!bootAttempted) {
+          bootAttempted = true;
+          playBootSound();
+        }
+      }
+
+      function playSuccessChime() {
+        try {
+          const ctx = getAudioContext();
+          const notes = [523.25, 659.25, 783.99];
+          const noteDuration = 0.12;
+          const startTime = ctx.currentTime + 0.05;
+          notes.forEach(function(freq, i) {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+            const t = startTime + i * noteDuration;
+            gain.gain.setValueAtTime(0.1, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + noteDuration + 0.05);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(t);
+            osc.stop(t + noteDuration + 0.05);
+          });
+        } catch(e) {}
+      }
+
+      // ============================================================
+      // 6. DOM REFS & VIEW SWITCHING
+      // ============================================================
+      const loginPage = document.getElementById('login-page');
+      const calcPage  = document.getElementById('calculator-page');
+      const loginBtn  = document.getElementById('loginBtn');
+      const password  = document.getElementById('password');
+      const googleBtn = document.getElementById('googleLogin');
+      const facebookBtn = document.getElementById('facebookLogin');
+
+      const mainDisplay = document.getElementById('calcMainDisplay');
+      const subDisplay  = document.getElementById('calcSubDisplay');
+      const opCountSpan = document.getElementById('opCount');
+
+      const usernameInput = document.getElementById('username');
+      const passwordInput = document.getElementById('password');
+
+      const loginCard = document.querySelector('.login-card');
+      const calcHudEl = document.querySelector('.calc-hud');
+
+      // ---- Mouse parallax tilt (3D card follows cursor) ----
+      document.addEventListener('mousemove', function(e) {
+        const centerX = window.innerWidth / 2;
+        const centerY = window.innerHeight / 2;
+        const rotY = ((e.clientX - centerX) / centerX) * 3;
+        const rotX = ((centerY - e.clientY) / centerY) * 3;
+        const tilt = 'perspective(800px) rotateX(' + rotX + 'deg) rotateY(' + rotY + 'deg)';
+        if (loginCard) loginCard.style.transform = tilt;
+        if (calcHudEl) calcHudEl.style.transform = tilt;
+      });
+
+      function switchToCalculator() {
+        loginPage.classList.add('hidden');
+        calcPage.classList.remove('hidden');
+        // Start ambient animations when calculator is active
+        startEqAnimation();
+        startDataStream();
+        startOnlineBlink();
+      }
+
+      function handleLogin() {
+        tryBootSound();
+        setTimeout(function() {
+          playSuccessChime();
+          switchToCalculator();
+        }, 150);
+      }
+
+      loginBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        handleLogin();
+      });
+
+      password.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          handleLogin();
+        }
+      });
+
+      googleBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        handleLogin();
+      });
+
+      facebookBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        handleLogin();
+      });
+
+      usernameInput.addEventListener('focus', function() {
+        tryBootSound();
+        playClickSound();
+      });
+      passwordInput.addEventListener('focus', function() {
+        playClickSound();
+      });
+
+      // ============================================================
+      // 7. CALCULATOR STATE & LOGIC
+      // ============================================================
+      const state = {
+        currentInput: '0',
+        previousInput: '',
+        operator: null,
+        shouldResetDisplay: false,
+        operationCount: 0
+      };
+
+      function updateDisplay() {
+        mainDisplay.textContent = state.currentInput;
+        if (state.operator && state.previousInput) {
+          const opSymbol = state.operator === '*' ? '\u00D7'
+                         : state.operator === '/' ? '\u00F7'
+                         : state.operator;
+          subDisplay.textContent = state.previousInput + ' ' + opSymbol;
+        } else {
+          subDisplay.textContent = '';
+        }
+        opCountSpan.textContent = state.operationCount;
+      }
+
+      function inputNumber(value) {
+        if (state.shouldResetDisplay) {
+          state.currentInput = value === '.' ? '0.' : value;
+          state.shouldResetDisplay = false;
+          updateDisplay();
+          return;
+        }
+        if (value === '.' && state.currentInput.includes('.')) return;
+        if (state.currentInput === '0' && value !== '.') {
+          state.currentInput = value;
+        } else {
+          state.currentInput += value;
+        }
+        updateDisplay();
+      }
+
+      function inputOperator(op) {
+        if (state.operator && !state.shouldResetDisplay) {
+          calculate();
+        }
+        state.previousInput = state.currentInput;
+        state.operator = op;
+        state.shouldResetDisplay = true;
+        updateDisplay();
+      }
+
+      function calculate() {
+        if (!state.operator || !state.previousInput) return;
+        const a = parseFloat(state.previousInput);
+        const b = parseFloat(state.currentInput);
+        let result = 0;
+        switch (state.operator) {
+          case '+': result = a + b; break;
+          case '-': result = a - b; break;
+          case '*': result = a * b; break;
+          case '/': result = b !== 0 ? a / b : 'ERROR'; break;
+          default: return;
+        }
+        state.operationCount++;
+        state.currentInput = typeof result === 'number'
+          ? (Number.isInteger(result) ? result.toString() : parseFloat(result.toFixed(10)).toString())
+          : 'ERROR';
+        state.previousInput = '';
+        state.operator = null;
+        state.shouldResetDisplay = true;
+        updateDisplay();
+      }
+
+      function clearAll() {
+        state.currentInput = '0';
+        state.previousInput = '';
+        state.operator = null;
+        state.shouldResetDisplay = false;
+        updateDisplay();
+      }
+
+      function negate() {
+        if (state.currentInput === '0') return;
+        state.currentInput = state.currentInput.startsWith('-')
+          ? state.currentInput.slice(1)
+          : '-' + state.currentInput;
+        updateDisplay();
+      }
+
+      function percent() {
+        const num = parseFloat(state.currentInput);
+        if (isNaN(num)) return;
+        state.currentInput = (num / 100).toString();
+        updateDisplay();
+      }
+
+      function calcButtonClick(e) {
+        const btn = e.target.closest('button');
+        if (!btn) return;
+        playClickSound();
+        const action = btn.dataset.action;
+        const value  = btn.dataset.value;
+        switch (action) {
+          case 'number':   inputNumber(value); break;
+          case 'operator': inputOperator(value); break;
+          case 'equals':   calculate(); break;
+          case 'clear':    clearAll(); break;
+          case 'negate':   negate(); break;
+          case 'percent':  percent(); break;
+        }
+      }
+
+      document.querySelector('.calc-grid').addEventListener('click', calcButtonClick);
+
+      document.addEventListener('keydown', function(e) {
+        if (calcPage.classList.contains('hidden')) return;
+        const key = e.key;
+        let handled = false;
+        if (/^[0-9]$/.test(key)) { inputNumber(key); handled = true; }
+        else if (key === '.') { inputNumber('.'); handled = true; }
+        else if (key === '+' || key === '-' || key === '*' || key === '/') { inputOperator(key); handled = true; }
+        else if (key === 'Enter' || key === '=') { e.preventDefault(); calculate(); handled = true; }
+        else if (key === 'Escape' || key === 'c' || key === 'C') { clearAll(); handled = true; }
+        else if (key === '%') { percent(); handled = true; }
+        if (handled) { playClickSound(); }
+      });
+
+      // ============================================================
+      // 8. INIT
+      // ============================================================
+      initCanvasBackground();
+      updateDisplay();
+    })();
+  </script>
+</body>
+</html>
